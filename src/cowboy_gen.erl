@@ -71,25 +71,27 @@ headers(undefined) ->
 headers(Headers) ->
     Headers.
 
--spec call(cowboy_req:req(), atom()) -> {ok, response()} |
-                                        {error, timeout}.
+-spec call(cowboy_req:req(), module()) -> {ok, response()} |
+                                          {error, timeout}.
 call(Req, Handler) ->
     call(Req, Handler, ?DEFAULT_TIMEOUT).
 
--spec call(cowboy_req:req(), atom(), integer()) -> {ok, response()} |
-                                                   {error, timeout}.
+-spec call(cowboy_req:req(), module(), integer()) -> {ok, response()} |
+                                                     {error, timeout}.
 call(Req, Handler, Timeout) ->
     Req2 = Req#http_req{pid = self()},
-    cowboy_rest:handler_init(Req2, undefined, Handler, []),
+    Env = [{handler, Handler},
+           {handler_opts, []}],
+    cowboy_handler:execute(Req2, Env),
     wait_for_response(Timeout).
 
--spec call_rest(cowboy_req:req(), atom()) -> {ok, response()} |
-                                             {error, timeout}.
+-spec call_rest(cowboy_req:req(), module()) -> {ok, response()} |
+                                               {error, timeout}.
 call_rest(Req, Handler) ->
     call_rest(Req, Handler, ?DEFAULT_TIMEOUT).
 
--spec call_rest(cowboy_req:req(), atom(), integer()) -> {ok, response()} |
-                                                        {error, timeout}.
+-spec call_rest(cowboy_req:req(), module(), integer()) -> {ok, response()} |
+                                                          {error, timeout}.
 call_rest(Req, Handler, Timeout) ->
     Req2 = Req#http_req{pid = self()},
     cowboy_rest:upgrade(Req2, [], Handler, []),
