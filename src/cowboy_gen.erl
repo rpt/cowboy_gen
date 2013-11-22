@@ -2,9 +2,7 @@
 
 -export([req/1]).
 -export([call/2,
-         call/3,
-         call_rest/2,
-         call_rest/3]).
+         call/3]).
 -export([name/0,
          send/2]).
 
@@ -83,18 +81,6 @@ call(Req, Handler, Timeout) ->
     Env = [{handler, Handler},
            {handler_opts, []}],
     cowboy_handler:execute(Req2, Env),
-    wait_for_response(Timeout).
-
--spec call_rest(cowboy_req:req(), module()) -> {ok, response()} |
-                                               {error, timeout}.
-call_rest(Req, Handler) ->
-    call_rest(Req, Handler, ?DEFAULT_TIMEOUT).
-
--spec call_rest(cowboy_req:req(), module(), integer()) -> {ok, response()} |
-                                                          {error, timeout}.
-call_rest(Req, Handler, Timeout) ->
-    Req2 = Req#http_req{pid = self()},
-    cowboy_rest:upgrade(Req2, [], Handler, []),
     wait_for_response(Timeout).
 
 name() ->
