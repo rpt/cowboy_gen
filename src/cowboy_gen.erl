@@ -1,9 +1,12 @@
 -module(cowboy_gen).
 
 -export([req/1]).
--export([call_rest/2,
+-export([call/2,
+         call/3,
+         call_rest/2,
          call_rest/3]).
--export([send/2]).
+-export([name/0,
+         send/2]).
 
 %% Copied from cowboy_req.erl.
 -record(http_req, {
@@ -38,6 +41,8 @@
 
 -type response() :: {integer(), proplists:proplist(), binary()}.
 
+-define(DEFAULT_TIMEOUT, 5000).
+
 -spec req(proplists:proplist()) -> cowboy_req:req().
 req(Props) ->
     Method = proplists:get_value(method, Props),
@@ -66,16 +71,41 @@ headers(undefined) ->
 headers(Headers) ->
     Headers.
 
+-spec call(cowboy_req:req(), atom()) -> {ok, response()} |
+                                        {error, timeout}.
+call(Req, Handler) ->
+    call(Req, Handler, ?DEFAULT_TIMEOUT).
+
+-spec call(cowboy_req:req(), atom(), integer()) -> {ok, response()} |
+                                                   {error, timeout}.
+call(Req, Handler, Timeout) ->
+    Req2 = Req#http_req{pid = self()},
+    cowboy_rest:handler_init(Req2, undefined, Handler, []),
+    wait_for_response(Timeout).
+
 -spec call_rest(cowboy_req:req(), atom()) -> {ok, response()} |
                                              {error, timeout}.
 call_rest(Req, Handler) ->
-    call_rest(Req, Handler, 5000).
+    call_rest(Req, Handler, ?DEFAULT_TIMEOUT).
 
 -spec call_rest(cowboy_req:req(), atom(), integer()) -> {ok, response()} |
                                                         {error, timeout}.
 call_rest(Req, Handler, Timeout) ->
     Req2 = Req#http_req{pid = self()},
     cowboy_rest:upgrade(Req2, [], Handler, []),
+    wait_for_response(Timeout).
+
+name() ->
+    ?MODULE.
+
+send(_Socket, Response) ->
+    [Status, Headers, <<"\r\n">>, Body] = Response,
+    Code = status_to_int(Status),
+    Headers2 = [{H, V} || [H, _, V, _] <- Headers],
+    self() ! {ok, {Code, Headers2, Body}}.
+
+-spec wait_for_response(integer()) -> {ok, response()} | {error, timeout}.
+wait_for_response(Timeout) ->
     receive
         {ok, _} = Res ->
             Res
@@ -83,12 +113,6 @@ call_rest(Req, Handler, Timeout) ->
         Timeout ->
             {error, timeout}
     end.
-
-send(_Socket, Response) ->
-    [Status, Headers, <<"\r\n">>, Body] = Response,
-    Code = status_to_int(Status),
-    Headers2 = [{H, V} || [H, _, V, _] <- Headers],
-    self() ! {ok, {Code, Headers2, Body}}.
 
 -spec status_to_int(binary()) -> integer().
 status_to_int(Status) ->
