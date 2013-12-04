@@ -77,11 +77,24 @@ call(Req, Handler) ->
 -spec call(cowboy_req:req(), module(), integer()) -> {ok, response()} |
                                                      {error, timeout}.
 call(Req, Handler, Timeout) ->
+    State = setup(),
     Req2 = Req#http_req{pid = self()},
     Env = [{handler, Handler},
            {handler_opts, []}],
     cowboy_handler:execute(Req2, Env),
-    wait_for_response(Timeout).
+    Res = wait_for_response(Timeout),
+    teardown(State),
+    Res.
+
+-spec setup() -> term().
+setup() ->
+    ets:new(cowboy_clock, [named_table]),
+    Time = cowboy_clock:rfc1123(calendar:local_time()),
+    ets:insert(cowboy_clock, {rfc1123, Time}).
+
+-spec teardown(term()) -> any().
+teardown(_State) ->
+    ets:delete(cowboy_clock).
 
 name() ->
     ?MODULE.
