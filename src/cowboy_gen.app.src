@@ -1,3 +1,3 @@
 {application, cowboy_gen,
  [{description, "Cowboy helpers"},
-  {vsn, "0.1.1"}]}.
+  {vsn, "0.1.2"}]}.
