@@ -88,7 +88,7 @@ call(Req, Handler, Timeout) ->
 
 -spec setup() -> term().
 setup() ->
-    ets:new(cowboy_clock, [named_table]),
+    catch ets:new(cowboy_clock, [named_table]),
     Time = cowboy_clock:rfc1123(calendar:local_time()),
     ets:insert(cowboy_clock, {rfc1123, Time}).
 
