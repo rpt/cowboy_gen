@@ -88,13 +88,24 @@ call(Req, Handler, Timeout) ->
 
 -spec setup() -> term().
 setup() ->
-    catch ets:new(cowboy_clock, [named_table]),
-    Time = cowboy_clock:rfc1123(calendar:local_time()),
-    ets:insert(cowboy_clock, {rfc1123, Time}).
+    case ets:info(cowboy_clock) of
+        undefined ->
+            ets:new(cowboy_clock, [named_table]),
+            Time = cowboy_clock:rfc1123(calendar:local_time()),
+            ets:insert(cowboy_clock, {rfc1123, Time});
+        _Else ->
+            ok
+    end.
 
 -spec teardown(term()) -> any().
 teardown(_State) ->
-    ets:delete(cowboy_clock).
+    Self = self(),
+    case ets:info(cowboy_clock, owner) of
+        Self ->
+            ets:delete(cowboy_clock);
+        _Else ->
+            ok
+    end.
 
 name() ->
     ?MODULE.
