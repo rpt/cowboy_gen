@@ -12,7 +12,7 @@
           transport,
           connection = keepalive,
           pid,
-          method = <<"GET">>,
+          method,
           version = 'HTTP/1.1',
           peer,
           host,
@@ -23,13 +23,13 @@
           qs,
           qs_vals,
           bindings,
-          headers = [],
+          headers,
           p_headers = [],
           cookies,
           meta = [],
           body_state = waiting,
           multipart,
-          buffer = <<>>,
+          buffer,
           resp_compress = false,
           resp_state = waiting,
           resp_headers = [],
@@ -43,31 +43,22 @@
 
 -spec req(proplists:proplist()) -> cowboy_req:req().
 req(Props) ->
-    Method = proplists:get_value(method, Props),
-    QsVals = proplists:get_value(qs_vals, Props),
-    Headers = proplists:get_value(headers, Props),
-    #http_req{transport = cowboy_gen,
-              method = method(Method),
-              qs_vals = qs_vals(QsVals),
-              headers = headers(Headers)}.
+    Method = proplists:get_value(method, Props, <<"GET">>),
+    QsVals = proplists:get_value(qs_vals, Props, []),
+    Headers = proplists:get_value(headers, Props, []),
+    Body = proplists:get_value(body, Props, <<>>),
+    Req = #http_req{transport = cowboy_gen,
+                    method = Method,
+                    qs_vals = QsVals,
+                    headers = Headers ++ [{<<"accept">>, <<"*/*">>}]},
+    body(Body, Req).
 
--spec method(undefined | binary()) -> binary().
-method(undefined) ->
-    <<"GET">>;
-method(Method) ->
-    Method.
-
--spec qs_vals(undefined | proplists:proplist()) -> proplists:proplist().
-qs_vals(undefined) ->
-    [];
-qs_vals(QsVals) ->
-    QsVals.
-
--spec headers(undefined | proplists:proplist()) -> proplists:proplist().
-headers(undefined) ->
-    [{<<"Accept">>, <<"*/*">>}];
-headers(Headers) ->
-    Headers.
+-spec body(binary(), cowboy_req:req()) -> cowboy_req:req().
+body(Body, #http_req{headers = Headers} = Req) ->
+    Length = integer_to_binary(byte_size(Body)),
+    Headers2 = set(<<"content-length">>, Length, Headers),
+    Req#http_req{headers = Headers2,
+                 buffer = Body}.
 
 -spec call(cowboy_req:req(), module()) -> {ok, response()} |
                                           {error, timeout}.
@@ -132,3 +123,7 @@ status_to_int(Status) ->
     Opts = [{capture, all_but_first, binary}],
     {match, [CodeBin]} = re:run(Status, Re, Opts),
     binary_to_integer(CodeBin).
+
+-spec set(binary(), binary(), proplists:proplist()) -> proplists:proplist().
+set(Key, Value, Proplist) ->
+    lists:keystore(Key, 1, Proplist, {Key, Value}).
