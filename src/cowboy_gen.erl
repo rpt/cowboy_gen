@@ -50,13 +50,17 @@ req(Props) ->
     Req = #http_req{transport = cowboy_gen,
                     method = Method,
                     qs_vals = QsVals,
-                    headers = Headers ++ [{<<"accept">>, <<"*/*">>}]},
+                    headers = headers(Headers)},
     body(Body, Req).
+
+-spec headers(proplists:proplist()) -> proplists:proplist().
+headers(Headers) ->
+    maybe_set({<<"accept">>, <<"*/*">>}, Headers).
 
 -spec body(binary(), cowboy_req:req()) -> cowboy_req:req().
 body(Body, #http_req{headers = Headers} = Req) ->
     Length = integer_to_binary(byte_size(Body)),
-    Headers2 = set(<<"content-length">>, Length, Headers),
+    Headers2 = set({<<"content-length">>, Length}, Headers),
     Req#http_req{headers = Headers2,
                  buffer = Body}.
 
@@ -124,6 +128,16 @@ status_to_int(Status) ->
     {match, [CodeBin]} = re:run(Status, Re, Opts),
     binary_to_integer(CodeBin).
 
--spec set(binary(), binary(), proplists:proplist()) -> proplists:proplist().
-set(Key, Value, Proplist) ->
-    lists:keystore(Key, 1, Proplist, {Key, Value}).
+-spec maybe_set({binary(), binary()},
+                proplists:proplist()) -> proplists:proplist().
+maybe_set({Key, _} = Prop, Proplist) ->
+    case lists:keymember(Key, 1, Proplist) of
+        true ->
+            Proplist;
+        false ->
+            set(Prop, Proplist)
+    end.
+
+-spec set({binary(), binary()}, proplists:proplist()) -> proplists:proplist().
+set({Key, _} = Prop, Proplist) ->
+    lists:keystore(Key, 1, Proplist, Prop).
