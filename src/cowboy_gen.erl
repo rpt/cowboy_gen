@@ -45,7 +45,7 @@ set_default_headers(Headers) ->
 
 -spec set_body_length(binary(), cowboy:http_headers()) -> cowboy:http_headers().
 set_body_length(Body, Headers) ->
-    Length = integer_to_binary(byte_size(Body)),
+    Length = list_to_binary(integer_to_list(byte_size(Body))),
     set({<<"content-length">>, Length}, Headers).
 
 -spec call(cowboy_req:req(), module()) -> {ok, response()} |
@@ -109,7 +109,7 @@ status_to_int(Status) ->
     Re = <<"^HTTP/1\.\\d (\\d+)">>,
     Opts = [{capture, all_but_first, binary}],
     {match, [CodeBin]} = re:run(Status, Re, Opts),
-    binary_to_integer(CodeBin).
+    list_to_integer(binary_to_list(CodeBin)).
 
 -spec maybe_set({binary(), binary()},
                 proplists:proplist()) -> proplists:proplist().
