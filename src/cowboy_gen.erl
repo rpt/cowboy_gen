@@ -1,68 +1,52 @@
 -module(cowboy_gen).
 
--export([req/1]).
+-export([req/0,
+         req/1]).
 -export([call/2,
          call/3]).
 -export([name/0,
          send/2]).
 
-%% Copied from cowboy_req.erl.
--record(http_req, {
-          socket,
-          transport,
-          connection = keepalive,
-          pid,
-          method,
-          version = 'HTTP/1.1',
-          peer,
-          host,
-          host_info,
-          port,
-          path,
-          path_info,
-          qs,
-          qs_vals,
-          bindings,
-          headers,
-          p_headers = [],
-          cookies,
-          meta = [],
-          body_state = waiting,
-          multipart,
-          buffer,
-          resp_compress = false,
-          resp_state = waiting,
-          resp_headers = [],
-          resp_body = <<>>,
-          onresponse
-         }).
-
 -type response() :: {integer(), proplists:proplist(), binary()}.
 
 -define(DEFAULT_TIMEOUT, 5000).
 
+-spec req() -> cowboy_req:req().
+req() ->
+    req([]).
+
 -spec req(proplists:proplist()) -> cowboy_req:req().
 req(Props) ->
+    Socket = undefined,
+    Transport = cowboy_gen,
+    Peer = undefined,
     Method = proplists:get_value(method, Props, <<"GET">>),
-    QsVals = proplists:get_value(qs_vals, Props, []),
+    Path = <<>>,
+    Query = <<>>,
+    Version = 'HTTP/1.1',
     Headers = proplists:get_value(headers, Props, []),
-    Body = proplists:get_value(body, Props, <<>>),
-    Req = #http_req{transport = cowboy_gen,
-                    method = Method,
-                    qs_vals = QsVals,
-                    headers = headers(Headers)},
-    body(Body, Req).
+    Headers2 = set_default_headers(Headers),
+    Host = <<"127.0.0.1">>,
+    Port = undefined,
+    Buffer = proplists:get_value(body, Props, <<>>),
+    Headers3 = set_body_length(Buffer, Headers2),
+    CanKeepalive = true,
+    Compress = false,
+    OnResponse = undefined,
+    Req = cowboy_req:new(Socket, Transport, Peer, Method, Path, Query,
+                         Version, Headers3, Host, Port, Buffer,
+                         CanKeepalive, Compress, OnResponse),
+    QsVals = proplists:get_value(qs_vals, Props, []),
+    cowboy_req:set([{qs_vals, QsVals}], Req).
 
--spec headers(proplists:proplist()) -> proplists:proplist().
-headers(Headers) ->
+-spec set_default_headers(proplists:proplist()) -> proplists:proplist().
+set_default_headers(Headers) ->
     maybe_set({<<"accept">>, <<"*/*">>}, Headers).
 
--spec body(binary(), cowboy_req:req()) -> cowboy_req:req().
-body(Body, #http_req{headers = Headers} = Req) ->
+-spec set_body_length(binary(), cowboy:http_headers()) -> cowboy:http_headers().
+set_body_length(Body, Headers) ->
     Length = integer_to_binary(byte_size(Body)),
-    Headers2 = set({<<"content-length">>, Length}, Headers),
-    Req#http_req{headers = Headers2,
-                 buffer = Body}.
+    set({<<"content-length">>, Length}, Headers).
 
 -spec call(cowboy_req:req(), module()) -> {ok, response()} |
                                           {error, timeout}.
@@ -72,17 +56,16 @@ call(Req, Handler) ->
 -spec call(cowboy_req:req(), module(), integer()) -> {ok, response()} |
                                                      {error, timeout}.
 call(Req, Handler, Timeout) ->
-    State = setup(),
-    Req2 = Req#http_req{pid = self()},
+    setup_cowboy_clock(),
     Env = [{handler, Handler},
            {handler_opts, []}],
-    cowboy_handler:execute(Req2, Env),
+    cowboy_handler:execute(Req, Env),
     Res = wait_for_response(Timeout),
-    teardown(State),
+    teardown_cowboy_clock(),
     Res.
 
--spec setup() -> term().
-setup() ->
+-spec setup_cowboy_clock() -> any().
+setup_cowboy_clock() ->
     case ets:info(cowboy_clock) of
         undefined ->
             ets:new(cowboy_clock, [named_table]),
@@ -92,8 +75,8 @@ setup() ->
             ok
     end.
 
--spec teardown(term()) -> any().
-teardown(_State) ->
+-spec teardown_cowboy_clock() -> any().
+teardown_cowboy_clock() ->
     Self = self(),
     case ets:info(cowboy_clock, owner) of
         Self ->
