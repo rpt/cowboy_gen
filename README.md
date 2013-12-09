@@ -2,6 +2,8 @@
 
 Helpers for testing handlers by generating fake but valid Cowboy requests.
 
+Works with Cowboy versions: `0.9.0`, `0.8.6`, `0.8.5`.
+
 ## Usage
 
 ### Creating request

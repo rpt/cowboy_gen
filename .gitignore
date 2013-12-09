@@ -1,5 +1,7 @@
 /doc/
 /.eunit/
+/logs/
 *.beam
 *.app
 erl_crash.dump
+/test/toppage_handler.erl
