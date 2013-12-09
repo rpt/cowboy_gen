@@ -1,4 +1,4 @@
-# cowboy_gen
+# cowboy_gen [![Build Status][travis_ci_image]][travis_ci]
 
 Helpers for testing handlers by generating fake but valid Cowboy requests.
 
@@ -29,3 +29,6 @@ Following parameters can be specified when creating a fake Cowboy request:
 -spec cowboy_gen:call(Request :: cowboy_req:req(), HandlerModule :: module()) ->
           {ok, Response :: response()} | {error, Reason :: term()}.
 ```
+
+[travis_ci]: https://travis-ci.org/rpt/cowboy_gen
+[travis_ci_image]: https://travis-ci.org/rpt/cowboy_gen.png
