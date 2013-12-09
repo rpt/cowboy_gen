@@ -16,6 +16,7 @@ Following parameters can be specified when creating a fake Cowboy request:
  * `{method, Method :: binary()}`
  * `{headers, Headers :: proplists:proplist()}`
  * `{qs_vals, QueryStringValues :: proplists:proplist()}`
+ * `{body, RequestBody :: binary()}`
 
 ### Calling handler
 
