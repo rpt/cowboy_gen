@@ -9,5 +9,5 @@ all() ->
     [rest_hello_world].
 
 rest_hello_world(_Config) ->
-    Req = cowboy_gen:req(),
+    {ok, Req} = cowboy_gen:req(),
     {ok, {200, _, _}} = cowboy_gen:call(Req, toppage_handler).

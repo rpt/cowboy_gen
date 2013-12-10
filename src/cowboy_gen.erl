@@ -8,22 +8,35 @@
          send/2]).
 
 -type response() :: {integer(), proplists:proplist(), binary()}.
+-export_types([reponse/0]).
+
+-type version_error() :: no_cowboy_app_in_path | unsupported_cowboy_version.
 
 -define(DEFAULT_TIMEOUT, 5000).
 
--spec req() -> cowboy_req:req().
+-spec req() -> {ok, cowboy_req:req()} | {error, version_error()}.
 req() ->
     req([]).
 
--spec req(proplists:proplist()) -> cowboy_req:req().
+-spec req(proplists:proplist()) -> {ok, cowboy_req:req()} |
+                                   {error, version_error()}.
 req(Props) ->
+    case get_cowboy_version() of
+        {ok, CowboyVersion} ->
+            {ok, req(Props, CowboyVersion)};
+        {error, _} = Error ->
+            Error
+    end.
+
+-spec req(proplists:proplist(), string()) -> cowboy_req:req().
+req(Props, CowboyVersion) ->
     Socket = undefined,
     Transport = cowboy_gen,
     Peer = undefined,
     Method = proplists:get_value(method, Props, <<"GET">>),
     Path = <<>>,
     Query = <<>>,
-    Version = 'HTTP/1.1',
+    Version = set_version(CowboyVersion),
     Headers = proplists:get_value(headers, Props, []),
     Headers2 = set_default_headers(Headers),
     Host = <<"127.0.0.1">>,
@@ -33,11 +46,20 @@ req(Props) ->
     CanKeepalive = true,
     Compress = false,
     OnResponse = undefined,
-    Req = cowboy_req:new(Socket, Transport, Peer, Method, Path, Query,
-                         Version, Headers3, Host, Port, Buffer,
-                         CanKeepalive, Compress, OnResponse),
+    Req = new(CowboyVersion, Socket, Transport, Peer, Method,
+              Path, Query, Version, Headers3, Host, Port,
+              Buffer, CanKeepalive, Compress, OnResponse),
     QsVals = proplists:get_value(qs_vals, Props, []),
     cowboy_req:set([{qs_vals, QsVals}], Req).
+
+-spec set_version(string()) -> 'HTTP/1.1' | {1, 1}.
+set_version(CowboyVersion) ->
+    case CowboyVersion > "0.8.4" of
+        true ->
+            'HTTP/1.1';
+        false ->
+            {1, 1}
+    end.
 
 -spec set_default_headers(proplists:proplist()) -> proplists:proplist().
 set_default_headers(Headers) ->
@@ -47,6 +69,20 @@ set_default_headers(Headers) ->
 set_body_length(Body, Headers) ->
     Length = list_to_binary(integer_to_list(byte_size(Body))),
     set({<<"content-length">>, Length}, Headers).
+
+new(CowboyVersion, Socket, Transport, Peer, Method, Path, Query, Version,
+    Headers, Host, Port, Buffer, CanKeepalive, Compress, OnResponse) ->
+    case CowboyVersion > "0.8.4" of
+        true ->
+            cowboy_req:new(Socket, Transport, Peer, Method, Path, Query,
+                           Version, Headers, Host, Port, Buffer,
+                           CanKeepalive, Compress, OnResponse);
+        false ->
+            Fragment = undefined,
+            cowboy_req:new(Socket, Transport, Peer, Method, Path, Query,
+                           Fragment, Version, Headers, Host, Port, Buffer,
+                           CanKeepalive, Compress, OnResponse)
+    end.
 
 -spec call(cowboy_req:req(), module()) -> {ok, response()} |
                                           {error, timeout}.
@@ -124,3 +160,27 @@ maybe_set({Key, _} = Prop, Proplist) ->
 -spec set({binary(), binary()}, proplists:proplist()) -> proplists:proplist().
 set({Key, _} = Prop, Proplist) ->
     lists:keystore(Key, 1, Proplist, Prop).
+
+-spec get_cowboy_version() -> {ok, string()} | {error, version_error()}.
+get_cowboy_version() ->
+    case application:load(cowboy) of
+        ok ->
+            Res = get_version(),
+            application:unload(cowboy),
+            Res;
+        {error, {already_loaded, cowboy}} ->
+            get_version();
+        {error, _} ->
+            {error, no_cowboy_app_in_path}
+    end.
+
+-spec get_version() -> {ok, string()} | {error, version_error()}.
+get_version() ->
+    Apps = application:loaded_applications(),
+    {cowboy, _, Version} = lists:keyfind(cowboy, 1, Apps),
+    case Version < "0.8.0" of
+        true ->
+            {error, unsupported_cowboy_version};
+        false ->
+            {ok, Version}
+    end.

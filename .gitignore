@@ -4,4 +4,5 @@
 *.beam
 *.app
 erl_crash.dump
+/rebar.tmp.config
 /test/toppage_handler.erl

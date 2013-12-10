@@ -7,5 +7,4 @@ echo "{deps,
 rebar -C rebar.tmp.config get-deps compile
 cp deps/cowboy/examples/rest_hello_world/src/toppage_handler.erl test/
 rebar -C rebar.tmp.config skip_deps=true ct
-rebar -C rebar.tmp.config delete-deps
-rm -f rebar.tmp.config
+rm -rf deps/cowboy deps/cowlib deps/ranch rebar.tmp.config
