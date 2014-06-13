@@ -177,8 +177,7 @@ get_cowboy_version() ->
 
 -spec get_version() -> {ok, version()} | {error, version_error()}.
 get_version() ->
-    Apps = application:loaded_applications(),
-    {cowboy, _, VersionStr} = lists:keyfind(cowboy, 1, Apps),
+    {ok, VersionStr} = application:get_key(cowboy, vsn),
     Version = parse_version(VersionStr),
     case Version < {0, 8, 0} of
         true ->
