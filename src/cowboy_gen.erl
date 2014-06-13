@@ -189,5 +189,5 @@ get_version() ->
 -spec parse_version(string()) -> version().
 parse_version(VersionStr) ->
     VersionList = re:split(VersionStr, "\\."),
-    Version = [binary_to_integer(X) || X <- VersionList],
+    Version = [list_to_integer(binary_to_list(X)) || X <- VersionList],
     list_to_tuple(Version).
