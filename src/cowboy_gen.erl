@@ -10,6 +10,7 @@
 -type response() :: {integer(), proplists:proplist(), binary()}.
 -export_types([reponse/0]).
 
+-type version() :: {pos_integer(), pos_integer(), pos_integer()}.
 -type version_error() :: no_cowboy_app_in_path | unsupported_cowboy_version.
 
 -define(DEFAULT_TIMEOUT, 5000).
@@ -52,9 +53,9 @@ req(Props, CowboyVersion) ->
     QsVals = proplists:get_value(qs_vals, Props, []),
     cowboy_req:set([{qs_vals, QsVals}], Req).
 
--spec set_version(string()) -> 'HTTP/1.1' | {1, 1}.
-set_version(CowboyVersion) ->
-    case CowboyVersion > "0.8.4" of
+-spec set_version(version()) -> 'HTTP/1.1' | {1, 1}.
+set_version(Version) ->
+    case Version >= {0, 8, 5} of
         true ->
             'HTTP/1.1';
         false ->
@@ -72,7 +73,7 @@ set_body_length(Body, Headers) ->
 
 new(CowboyVersion, Socket, Transport, Peer, Method, Path, Query, Version,
     Headers, Host, Port, Buffer, CanKeepalive, Compress, OnResponse) ->
-    case CowboyVersion > "0.8.4" of
+    case CowboyVersion >= {0, 8, 5} of
         true ->
             cowboy_req:new(Socket, Transport, Peer, Method, Path, Query,
                            Version, Headers, Host, Port, Buffer,
@@ -161,7 +162,7 @@ maybe_set({Key, _} = Prop, Proplist) ->
 set({Key, _} = Prop, Proplist) ->
     lists:keystore(Key, 1, Proplist, Prop).
 
--spec get_cowboy_version() -> {ok, string()} | {error, version_error()}.
+-spec get_cowboy_version() -> {ok, version()} | {error, version_error()}.
 get_cowboy_version() ->
     case application:load(cowboy) of
         ok ->
@@ -174,13 +175,20 @@ get_cowboy_version() ->
             {error, no_cowboy_app_in_path}
     end.
 
--spec get_version() -> {ok, string()} | {error, version_error()}.
+-spec get_version() -> {ok, version()} | {error, version_error()}.
 get_version() ->
     Apps = application:loaded_applications(),
-    {cowboy, _, Version} = lists:keyfind(cowboy, 1, Apps),
-    case Version < "0.8.0" of
+    {cowboy, _, VersionStr} = lists:keyfind(cowboy, 1, Apps),
+    Version = parse_version(VersionStr),
+    case Version < {0, 8, 0} of
         true ->
             {error, unsupported_cowboy_version};
         false ->
             {ok, Version}
     end.
+
+-spec parse_version(string()) -> version().
+parse_version(VersionStr) ->
+    VersionList = re:split(VersionStr, "\\."),
+    Version = [binary_to_integer(X) || X <- VersionList],
+    list_to_tuple(Version).

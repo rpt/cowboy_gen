@@ -4,7 +4,8 @@ compile:
 	@ rebar compile
 
 test: compile
-	@ ./run_test 0.9.0 && \
+	@ ./run_test 0.10.0 && \
+	  ./run_test 0.9.0 && \
 	  ./run_test 0.8.6 && \
 	  ./run_test 0.8.5 && \
 	  ./run_test 0.8.4 && \
@@ -14,7 +15,7 @@ test: compile
 	  ./run_test 0.8.0
 
 test-latest: compile
-	@ ./run_test 0.9.0
+	@ ./run_test 0.10.0
 
 clean:
 	@ rebar clean
