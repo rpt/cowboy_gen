@@ -33,7 +33,7 @@ req(Props) ->
 req(Props, CowboyVersion) ->
     Socket = undefined,
     Transport = cowboy_gen,
-    Peer = undefined,
+    Peer = proplists:get_value(peer, Props, default_peer(CowboyVersion)),
     Method = proplists:get_value(method, Props, <<"GET">>),
     Path = <<>>,
     Query = <<>>,
@@ -52,6 +52,13 @@ req(Props, CowboyVersion) ->
               Buffer, CanKeepalive, Compress, OnResponse),
     QsVals = proplists:get_value(qs_vals, Props, []),
     cowboy_req:set([{qs_vals, QsVals}], Req).
+
+-spec default_peer(version()) ->
+    undefined | {inet:ip_address(), inet:port_number()}.
+default_peer(Version) when Version >= {0, 8, 5} ->
+    {{0,0,0,0}, 0};
+default_peer(_Version) ->
+    undefined.
 
 -spec set_version(version()) -> 'HTTP/1.1' | {1, 1}.
 set_version(Version) ->
