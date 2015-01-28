@@ -1,4 +1,4 @@
-# cowboy_gen [![Build Status][travis_ci_image]][travis_ci]
+# cowboy_gen 0.2.4 [![Build Status][travis_ci_image]][travis_ci]
 
 Helpers for testing handlers by generating fake but valid Cowboy requests.
 
@@ -22,6 +22,7 @@ Following parameters can be specified when creating a fake Cowboy request:
  * `{headers, Headers :: proplists:proplist()}`
  * `{qs_vals, QueryStringValues :: proplists:proplist()}`
  * `{body, RequestBody :: binary()}`
+ * `{peer, {Address :: inet:ip_address(), Port :: inet:port_number()}}`
 
 ### Calling handler
 
